@@ -22,4 +22,44 @@ export const config = convict({
     default: 3000,
     env: 'PORT',
   },
+  bot: {
+    token: {
+      doc: 'The bot token.',
+      format: String,
+      default: '',
+      env: 'BOT_TOKEN',
+    },
+  },
+  mongo: {
+    host: {
+      doc: 'The mongo host.',
+      format: String,
+      default: 'localhost',
+      env: 'MONGO_HOST',
+    },
+    port: {
+      doc: 'The mongo port.',
+      format: 'port',
+      default: 27017,
+      env: 'MONGO_PORT',
+    },
+    database: {
+      doc: 'The mongo database.',
+      format: String,
+      default: 'test',
+      env: 'MONGO_DATABASE',
+    },
+    username: {
+      doc: 'The mongo username.',
+      format: String,
+      default: '',
+      env: 'MONGO_USERNAME',
+    },
+    password: {
+      doc: 'The mongo password.',
+      format: String,
+      default: '',
+      env: 'MONGO_PASSWORD',
+    },
+  },
 }).getProperties();

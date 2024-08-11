@@ -1,8 +1,22 @@
 import mongoose, { FilterQuery, Types } from 'mongoose';
-import { User } from 'types/User';
-import { LEADERBOARD_LIMIT } from 'utils/constants';
+import { User } from '../../types/User';
 
 const schema = new mongoose.Schema({
+  lives: {
+    type: Number,
+    default: 5,
+    max: 50,
+    min: 0,
+  },
+  referrals: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  isKol: {
+    type: Boolean,
+    default: false,
+  },
   telegramId: {
     type: Number,
     required: true,
@@ -16,27 +30,48 @@ const schema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  daystreak: {
-    type: Number,
-    default: 0,
+  inviteLinkParam: {
+    type: String,
+    default: null,
   },
-  isKol: {
-    type: Boolean,
-    default: false,
+  language: {
+    type: String,
+    required: true,
   },
-  leaderboardSpot: {
-    type: Number,
-    default: 0,
+  activity: {
+    default: {
+      streak: {
+        amount: 0,
+        days: [],
+        updatedAt: 0,
+      },
+    },
+    type: {
+      streak: {
+        type: {
+          amount: {
+            type: Number,
+            default: 0,
+            min: 0,
+          },
+          days: {
+            type: [String],
+            default: [],
+          },
+          updatedAt: {
+            type: Number,
+            default: 0,
+          },
+        },
+      },
+    },
   },
   earnings: {
-    type: Types.ObjectId,
-    ref: 'Earnings',
+    type: Number,
+    default: 0,
+    min: 0,
   },
-  currentReward: {
-    type: Types.ObjectId,
-    ref: 'Reward',
-  },
-  rewards: {
+  claimedRewards: {
     type: [
       {
         type: Types.ObjectId,
@@ -44,28 +79,6 @@ const schema = new mongoose.Schema({
       },
     ],
     default: [],
-  },
-  referrals: {
-    required: false,
-    type: Types.ObjectId,
-    ref: 'Referrals',
-  },
-  gamesOptions: {
-    default: [],
-    type: [
-      {
-        gameId: Types.ObjectId,
-        playId: String,
-        amount: {
-          type: Number,
-          default: 0,
-        },
-        finished: {
-          type: Boolean,
-          default: false,
-        },
-      },
-    ],
   },
   createdAt: {
     type: Number,
@@ -75,14 +88,31 @@ const schema = new mongoose.Schema({
 
 export const userModel = mongoose.model<User>('User', schema);
 
+export const getUser = async (filter: FilterQuery<User>): Promise<User> => {
+  const user = await userModel.findOne(filter);
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  return user;
+};
+
 export const getOrCreateUser = async (data: Partial<User>): Promise<User> => {
-  return userModel.findOneAndUpdate(
-    {
-      telegramId: data.telegramId,
-    },
-    data,
-    { upsert: true, new: true },
-  );
+  const [existingUser, updatedUser] = await Promise.all([
+    userModel.findOne({ telegramId: data.telegramId }),
+    userModel.findOneAndUpdate(
+      {
+        telegramId: data.telegramId,
+      },
+      data,
+      { upsert: true, new: true },
+    ),
+  ]);
+
+  updatedUser.isNew = !existingUser;
+
+  return updatedUser;
 };
 
 export const updateUser = async (
@@ -90,15 +120,4 @@ export const updateUser = async (
   data: FilterQuery<User>,
 ): Promise<void> => {
   await userModel.findOneAndUpdate(filter, data, { new: true });
-};
-
-export const getUsersLeaderboard = async (
-  gameId: Types.ObjectId,
-): Promise<User[]> => {
-  return userModel
-    .find({
-      'gamesOptions.gameId': gameId,
-    })
-    .sort({ 'gamesOptions.amount': -1 })
-    .slice(LEADERBOARD_LIMIT);
 };

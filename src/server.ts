@@ -1,15 +1,20 @@
 import { app } from './app';
-import mongoose from 'mongoose';
 import { config } from './config';
+import { info } from './utils/logger';
+import { initializeMongo } from './utils/mongo';
 
-mongoose
-  .connect('...')
-  .then(() => {
-    console.log('MongoDB connected');
-    app.listen(config.port, () => {
-      console.log(`Server is running on port ${config.port}`);
-    });
-  })
-  .catch((err) => {
-    console.error('Database connection error:', err);
+const logCategory = 'server.ts';
+
+(async function () {
+  await initializeMongo({
+    host: config.mongo.host,
+    port: config.mongo.port,
+    database: config.mongo.database,
+    username: config.mongo.username,
+    password: config.mongo.password,
   });
+
+  app.listen(config.port, () => {
+    info(logCategory, `Server is running on port ${config.port}`);
+  });
+})();

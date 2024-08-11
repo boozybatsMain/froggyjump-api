@@ -1,39 +1,49 @@
 import { Document } from 'mongoose';
-import { Earnings } from './Earnings';
-import { Referrals } from './Referrals';
 import { Reward } from './Reward';
 
 export interface User extends Document {
+  lives: number;
+  referrals: number;
+  isKol: boolean;
   telegramId: number;
   username: string;
+  inviteLinkParam: string;
   imageURL: string;
-  daystreak: number;
-  isKol: boolean;
-  leaderboardSpot: number;
-  earnings: Earnings;
-  currentReward: Reward;
-  rewards: Reward[];
-  referrals?: Referrals;
-  gamesOptions: {
-    gameId: string;
-    playId: string;
-    amount: number;
-    finished: boolean;
-  }[];
+  language: string;
+  activity: {
+    streak: {
+      amount: number;
+      days: string[];
+      updatedAt: number;
+    };
+  };
+  earnings: number;
+  claimedRewards: Reward[];
   createdAt: number;
 }
 
 export interface UserView {
+  lives: number;
+  referrals: number;
+  isKol: boolean;
   telegramId: number;
   username: string;
   imageURL: string;
-  daystreak: number;
-  isKol: boolean;
-  totalFriends: number;
-  leaderboardSpot: number;
-  earnings: Earnings;
-  currentReward: Reward;
-  rewards: Reward[];
-  referrals?: Referrals;
+  language: string;
+  activity: {
+    streak: {
+      amount: number;
+      days: string[];
+      updatedAt: number;
+    };
+    invites: {
+      max: number;
+      amount: number;
+    };
+  };
+  earnings: {
+    total: number;
+    referrals: number;
+  };
   createdAt: number;
 }
