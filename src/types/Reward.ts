@@ -1,9 +1,12 @@
+import { Document } from 'mongoose';
+
 export type Reward = {
   repeatRules?: {
     daily?: boolean;
   };
   money?: number;
   lives?: number;
+  createdAt: number;
 } & (
   | {
       rewardType: 'achievement';
@@ -11,6 +14,8 @@ export type Reward = {
     }
   | {
       rewardType: 'social';
-      subscription: 'twitter' | 'telegram' | 'telegram-chat';
+      subscription: string;
     }
 );
+
+export type RewardDoc = Document & Reward;

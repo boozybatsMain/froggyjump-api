@@ -1,5 +1,9 @@
 import mongoose, { FilterQuery, Types } from 'mongoose';
-import { User } from '../../types/User';
+import { UserDoc } from '../../types/User';
+
+const populate = {
+  path: 'claimedRewards.reward',
+};
 
 const schema = new mongoose.Schema({
   lives: {
@@ -71,11 +75,35 @@ const schema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
+  friendsEarnings: {
+    type: {
+      money: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      lives: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+    },
+    default: {
+      money: 0,
+      lives: 0,
+    },
+  },
   claimedRewards: {
     type: [
       {
-        type: Types.ObjectId,
-        ref: 'Reward',
+        reward: {
+          type: Types.ObjectId,
+          ref: 'Reward',
+        },
+        createdAt: {
+          type: Number,
+          default: Date.now,
+        },
       },
     ],
     default: [],
@@ -86,10 +114,12 @@ const schema = new mongoose.Schema({
   },
 });
 
-export const userModel = mongoose.model<User>('User', schema);
+export const userModel = mongoose.model<UserDoc>('User', schema);
 
-export const getUser = async (filter: FilterQuery<User>): Promise<User> => {
-  const user = await userModel.findOne(filter);
+export const getUser = async (
+  filter: FilterQuery<UserDoc>,
+): Promise<UserDoc> => {
+  const user = await userModel.findOne(filter).populate(populate);
 
   if (!user) {
     throw new Error('User not found');
@@ -98,9 +128,11 @@ export const getUser = async (filter: FilterQuery<User>): Promise<User> => {
   return user;
 };
 
-export const getOrCreateUser = async (data: Partial<User>): Promise<User> => {
+export const getOrCreateUser = async (
+  data: Partial<UserDoc>,
+): Promise<UserDoc> => {
   const [existingUser, updatedUser] = await Promise.all([
-    userModel.findOne({ telegramId: data.telegramId }),
+    userModel.findOne({ telegramId: data.telegramId }).populate(populate),
     userModel.findOneAndUpdate(
       {
         telegramId: data.telegramId,
@@ -116,8 +148,8 @@ export const getOrCreateUser = async (data: Partial<User>): Promise<User> => {
 };
 
 export const updateUser = async (
-  filter: FilterQuery<User>,
-  data: FilterQuery<User>,
+  filter: FilterQuery<UserDoc>,
+  data: FilterQuery<UserDoc>,
 ): Promise<void> => {
-  await userModel.findOneAndUpdate(filter, data, { new: true });
+  await userModel.updateOne(filter, data);
 };

@@ -4,7 +4,7 @@ import { validateData } from '../../utils/route';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 import { useAuth } from '../../middlewares/useAuth.middleware';
-import { User } from '../../types/User';
+import { UserDoc } from '../../types/User';
 
 export const router = Router();
 
@@ -22,25 +22,21 @@ router.get('/', async (req, res, next) => {
 
 router.post('/:gameId/play', useAuth(), async (req, res, next) => {
   try {
-    const query = validateData(
-      req.query,
+    const params = validateData(
+      req.params,
       z.object({
         gameId: z.string(),
       }),
     );
-    if ('error' in query) {
-      return res.status(400).send(query.error);
+    if ('error' in params) {
+      return res.status(400).send(params.error);
     }
 
-    const user = req.user as User;
+    const user = req.user as UserDoc;
 
-    try {
-      const gameId = new Types.ObjectId(query.gameId);
+    const gameId = new Types.ObjectId(params.gameId);
 
-      await GamesController.playGame(gameId, user._id as Types.ObjectId);
-    } catch (err) {
-      return res.status(400).send((err as Error).message);
-    }
+    await GamesController.playGame(gameId, user._id as Types.ObjectId);
 
     res.json({ ok: true });
   } catch (err) {
@@ -50,18 +46,18 @@ router.post('/:gameId/play', useAuth(), async (req, res, next) => {
 
 router.post('/:playId/claim', useAuth(), async (req, res, next) => {
   try {
-    const query = validateData(
-      req.query,
+    const params = validateData(
+      req.params,
       z.object({
         playId: z.string(),
       }),
     );
-    if ('error' in query) {
-      return res.status(400).send(query.error);
+    if ('error' in params) {
+      return res.status(400).send(params.error);
     }
 
     const data = validateData(
-      req.query,
+      req.body,
       z.object({
         score: z.number(),
       }),
@@ -70,10 +66,10 @@ router.post('/:playId/claim', useAuth(), async (req, res, next) => {
       return res.status(400).send(data.error);
     }
 
-    const user = req.user as User;
+    const user = req.user as UserDoc;
 
     try {
-      const playId = new Types.ObjectId(query.playId);
+      const playId = new Types.ObjectId(params.playId);
 
       await GamesController.claimGame(playId, user, data.score);
     } catch (err) {
@@ -105,7 +101,7 @@ router.get('/leaderboard', async (req, res, next) => {
       return res.status(400).send('Invalid game id');
     }
 
-    const user = req.user as User;
+    const user = req.user as UserDoc;
 
     const results = await GamesController.getLeaderboard(gameId, user);
 

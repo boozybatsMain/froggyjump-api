@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { User } from '../../types/User';
+import { UserDoc } from '../../types/User';
 import { useAuth } from '../../middlewares/useAuth.middleware';
 import { Types } from 'mongoose';
 import { RewardsController } from './rewards.controller';
@@ -18,9 +18,33 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post('/claim/:rewardId', useAuth(), async (req, res, next) => {
+router.post('/referrals/claim', useAuth(), async (req, res, next) => {
   try {
-    const user = req.user as User;
+    const user = req.user as UserDoc;
+
+    await RewardsController.claimReferralReward(user);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/new-friends/claim', useAuth(), async (req, res, next) => {
+  try {
+    const user = req.user as UserDoc;
+
+    await RewardsController.claimNewFriendsReward(user);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:rewardId/claim', useAuth(), async (req, res, next) => {
+  try {
+    const user = req.user as UserDoc;
 
     const rewardId = new Types.ObjectId(req.params.rewardId);
 

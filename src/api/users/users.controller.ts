@@ -1,13 +1,21 @@
-import { User, UserView } from '../../types/User';
+import { UserDoc, UserView } from '../../types/User';
 import { getOrCreateUser, updateUser } from './users.model';
 import { createHmac } from 'crypto';
 import { config } from '../../config';
 import { z } from 'zod';
-import { getReferral, referralModel, updateReferral } from './referral.model';
+import {
+  getReferral,
+  getReferralsCount,
+  getReferralsInfo,
+  updateReferral,
+} from './referral.model';
 import {
   REFERRAL_COMMISION,
   REFERRAL_SECOND_LEVEL_COMMISION,
 } from '../../utils/constants';
+import { asyncMap } from '../../utils/async';
+import { Types } from 'mongoose';
+import { getPlay } from '../games/play.model';
 
 const validAuthDuration = 10 * 60 * 60 * 1000;
 
@@ -22,8 +30,41 @@ const userSchema = z
   .passthrough();
 
 export class UsersController {
-  public static async userToView(user: User): Promise<UserView> {
-    return user.toObject();
+  public static async userToView(
+    user: UserDoc,
+    isMe: boolean,
+  ): Promise<UserView> {
+    const result: UserView = {
+      referrals: user.referrals,
+      isKol: user.isKol,
+      username: user.username,
+      imageURL: user.imageURL,
+    };
+
+    if (isMe) {
+      result.lives = user.lives;
+      result.inviteLinkParam = user.inviteLinkParam;
+      result.language = user.language;
+      result.activity = {
+        streak: {
+          amount: user.activity.streak.amount,
+          days: user.activity.streak.days,
+          updatedAt: user.activity.streak.updatedAt,
+        },
+      };
+      result.earnings = user.earnings;
+      result.friendsEarnings = {
+        lives: user.friendsEarnings.lives,
+        money: user.friendsEarnings.money,
+      };
+      result.claimedRewards = user.claimedRewards.map((reward) => ({
+        reward: reward.reward,
+        createdAt: reward.createdAt,
+      }));
+      result.createdAt = user.createdAt;
+    }
+
+    return result;
   }
 
   private static validateHash(data: { [key: string]: string }): boolean {
@@ -79,11 +120,11 @@ export class UsersController {
     }
   }
 
-  public static getOrCreateUser(user: Partial<User>): Promise<User> {
+  public static getOrCreateUser(user: Partial<UserDoc>): Promise<UserDoc> {
     return getOrCreateUser(user);
   }
 
-  public static async earnMoney(user: User, amount: number): Promise<void> {
+  public static async earnMoney(user: UserDoc, amount: number): Promise<void> {
     user.earnings += amount;
 
     const [referral] = await Promise.all([
@@ -95,9 +136,7 @@ export class UsersController {
           _id: user._id,
         },
         {
-          $inc: {
-            'earnings.total': amount,
-          },
+          earnings: user.earnings,
         },
       ),
     ]);
@@ -105,7 +144,7 @@ export class UsersController {
     if (referral != null) {
       const [secondReferral] = await Promise.all([
         getReferral({
-          joined: referral.joined,
+          joined: referral.user,
         }).catch(() => null),
         updateReferral(
           {
@@ -134,15 +173,56 @@ export class UsersController {
     }
   }
 
-  public static async getReferrals(user: User): Promise<User[]> {
-    const referrals = await referralModel
-      .find({
-        user: user._id,
-      })
-      .populate('joined')
-      .select('joined')
-      .lean();
+  public static async getReferrals(
+    user: UserDoc,
+    filters: {
+      offset?: number;
+      limit?: number;
+    },
+  ): Promise<{
+    results: {
+      user: UserView;
+      earned: number;
+      claimed: number;
+      createdAt: number;
+    }[];
+    meta: {
+      offset: number;
+      limit: number;
+      total: number;
+    };
+  }> {
+    const offset = filters.offset ?? 0;
+    const limit = filters.limit ?? 5;
 
-    return referrals.map((referral) => referral.joined);
+    const [referrals, total] = await Promise.all([
+      getReferralsInfo(user._id as Types.ObjectId, offset, limit),
+      getReferralsCount({
+        user: user._id,
+      }),
+    ]);
+
+    const results = await asyncMap(referrals, async (referral) => ({
+      user: await UsersController.userToView(referral.joined, false),
+      earned: referral.earned,
+      claimed: referral.claimed,
+      createdAt: referral.createdAt,
+    }));
+
+    return {
+      results,
+      meta: {
+        offset,
+        limit,
+        total,
+      },
+    };
+  }
+
+  public static async getCurrentPlay(user: UserDoc) {
+    return getPlay({
+      user: user._id,
+      active: true,
+    });
   }
 }

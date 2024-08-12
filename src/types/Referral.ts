@@ -1,9 +1,10 @@
 import { Document } from 'mongoose';
-import { User } from './User';
+import { UserDoc } from './User';
 
-export interface Referral extends Document {
-  user: User;
-  joined: User;
+export interface ReferralDoc extends Document {
+  user: UserDoc;
+  joined: UserDoc;
   claimed: number;
   earned: number;
+  createdAt: number;
 }

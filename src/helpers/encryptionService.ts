@@ -5,12 +5,12 @@ import * as base32 from 'hi-base32';
 export class EncryptionService {
   private static readonly algorithm = 'aes-256-ctr';
 
-  static encode(telegramId: number): string {
+  static encode(data: string): string {
     const key = Buffer.from(config.bot.token.substr(0, 32));
 
     const iv = randomBytes(16);
     const cipher = createCipheriv(this.algorithm, key, iv);
-    let encoded = cipher.update(`telegramId=${telegramId}`, 'utf8', 'base64');
+    let encoded = cipher.update(data, 'utf8', 'base64');
     encoded += cipher.final('base64');
     const ivBase32 = base32.encode(iv).replace(/=+$/, '');
     const encodedBase32 = base32

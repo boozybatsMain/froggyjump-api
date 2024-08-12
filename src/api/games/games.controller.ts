@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { getGame, getGames } from './games.model';
-import { User } from '../../types/User';
+import { UserDoc } from '../../types/User';
 import {
   createPlay,
   getPlay,
@@ -16,8 +16,8 @@ export class GamesController {
 
   static async isPlaying(userId: Types.ObjectId) {
     try {
-      getPlay({
-        userId,
+      await getPlay({
+        user: userId,
         active: true,
       });
 
@@ -33,7 +33,7 @@ export class GamesController {
     });
 
     if (await GamesController.isPlaying(userId)) {
-      throw new Error('You are already playing this game');
+      throw new Error('Player is already playing');
     }
 
     await createPlay({
@@ -42,7 +42,7 @@ export class GamesController {
     });
   }
 
-  static async claimGame(playId: Types.ObjectId, user: User, score: number) {
+  static async claimGame(playId: Types.ObjectId, user: UserDoc, score: number) {
     // check if user is belong to the play
     await getPlay({
       _id: playId,
@@ -69,15 +69,15 @@ export class GamesController {
 
   static async getLeaderboard(
     gameId: Types.ObjectId,
-    user: User,
+    user: UserDoc,
   ): Promise<{
     leaderboard: {
-      user: User;
+      user: UserDoc;
       score: number;
       rank: number;
     }[];
     userRank: {
-      user: User | null;
+      user: UserDoc | null;
       score: number | null;
       rank: number | null;
     };

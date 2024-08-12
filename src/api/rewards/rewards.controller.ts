@@ -1,10 +1,14 @@
 import { UsersController } from '../../api/users/users.controller';
 import { getUser, updateUser } from '../../api/users/users.model';
 import { Types } from 'mongoose';
-import { User } from '../../types/User';
+import { UserDoc } from '../../types/User';
 import { dailyStreakRewards } from '../../utils/constants';
 import { buildComplexCategory, error } from '../../utils/logger';
 import { getReward, getRewards } from './rewards.model';
+import {
+  getReferralsEarnedSum,
+  updateReferrals,
+} from '../users/referral.model';
 
 const logCategory = 'rewards.controller';
 
@@ -13,7 +17,7 @@ export class RewardsController {
     return getRewards({});
   }
 
-  public static async claimDailyReward(user: User) {
+  public static async claimDailyReward(user: UserDoc) {
     const complexLogCategory = buildComplexCategory(
       logCategory,
       'claimDailyReward',
@@ -22,26 +26,45 @@ export class RewardsController {
     const lastClaimed = user.activity.streak.updatedAt;
     const now = Date.now();
 
-    const diff = now - lastClaimed;
-    const days = Math.floor(diff / 1000 / 60 / 60 / 24);
+    const lastClaimedDate = new Date(lastClaimed);
+    const currentDate = new Date(now);
 
-    if (days === 0) {
+    if (lastClaimedDate.toDateString() === currentDate.toDateString()) {
       return;
     }
 
-    if (days > 1) {
-      user.activity.streak.amount = 0;
+    const oneDayInMillis = 24 * 60 * 60 * 1000;
+    const daysDifference = Math.floor(
+      (currentDate.getTime() - lastClaimedDate.getTime()) / oneDayInMillis,
+    );
+
+    if (daysDifference > 1) {
+      user.activity.streak.amount = 1;
+      user.activity.streak.days = [
+        currentDate.toLocaleString('en-US', { weekday: 'short' }).toLowerCase(),
+      ];
     } else {
       if (user.activity.streak.amount === 30) {
-        user.activity.streak.amount = 0;
+        user.activity.streak.amount = 1;
       } else {
         user.activity.streak.amount++;
+      }
+
+      user.activity.streak.days.push(
+        currentDate.toLocaleString('en-US', { weekday: 'short' }).toLowerCase(),
+      );
+
+      if (
+        user.activity.streak.days.includes('sun') &&
+        currentDate.getDay() === 1
+      ) {
+        user.activity.streak.days = ['mon'];
       }
     }
 
     user.activity.streak.updatedAt = now;
 
-    const streakReward = dailyStreakRewards[user.activity.streak.amount - 1];
+    const streakReward = dailyStreakRewards[user.activity.streak.amount];
     if (streakReward == null) {
       error(
         complexLogCategory,
@@ -52,6 +75,7 @@ export class RewardsController {
         },
       );
     }
+
     const { money, lives } = streakReward;
     if (lives != null) {
       user.lives += lives;
@@ -66,6 +90,7 @@ export class RewardsController {
           $set: {
             'activity.streak.amount': user.activity.streak.amount,
             'activity.streak.updatedAt': user.activity.streak.updatedAt,
+            'activity.streak.days': user.activity.streak.days,
             lives: user.lives,
           },
         },
@@ -74,35 +99,53 @@ export class RewardsController {
     ]);
   }
 
-  public static async claimReward(rewardId: Types.ObjectId, user: User) {
+  public static async claimReward(rewardId: Types.ObjectId, user: UserDoc) {
     const complexLogCategory = buildComplexCategory(logCategory, 'claimReward');
 
-    const [isAlreadyClaimedReward, reward] = await Promise.all([
-      getUser({
-        _id: user._id,
-        claimedRewards: {
-          $in: [rewardId],
-        },
-      }),
+    const [reward, alreadyClaimed] = await Promise.all([
       getReward({
         _id: rewardId,
       }),
+      getUser({
+        _id: user._id,
+        'claimedRewards.reward': {
+          $in: [rewardId],
+        },
+      }).catch(() => false),
     ]);
 
-    if (isAlreadyClaimedReward) {
-      error(
-        complexLogCategory,
-        new Error('User already claimed that reward'),
-        undefined,
-        {
-          user,
-          rewardId,
-        },
-      );
-      return null;
+    const { money, lives, repeatRules } = reward;
+
+    if (alreadyClaimed) {
+      if (repeatRules?.daily) {
+        const userReward = user.claimedRewards.find((claimedReward) =>
+          (claimedReward.reward._id as Types.ObjectId).equals(rewardId),
+        );
+
+        if (userReward == null) {
+          error(
+            complexLogCategory,
+            new Error('Reward not found in claimedRewards'),
+            undefined,
+            {
+              user,
+              reward,
+            },
+          );
+
+          throw new Error('Unexpected claimedReward error');
+        }
+
+        if (userReward.createdAt + 24 * 60 * 60 * 1000 > Date.now()) {
+          throw new Error('Daily reward time not passed');
+        }
+
+        userReward.createdAt = Date.now();
+      } else {
+        throw new Error('Reward already claimed');
+      }
     }
 
-    const { money, lives } = reward;
     if (lives != null) {
       user.lives += lives;
     }
@@ -113,9 +156,17 @@ export class RewardsController {
           _id: user._id,
         },
         {
-          $push: {
-            claimedRewards: rewardId,
-          },
+          ...(alreadyClaimed
+            ? {
+                claimedRewards: user.claimedRewards,
+              }
+            : {
+                $push: {
+                  claimedRewards: {
+                    reward: rewardId,
+                  },
+                },
+              }),
           $set: {
             lives: user.lives,
           },
@@ -128,5 +179,48 @@ export class RewardsController {
     }
 
     await Promise.all(promises);
+  }
+
+  public static async claimNewFriendsReward(user: UserDoc) {
+    await Promise.all([
+      UsersController.earnMoney(user, user.friendsEarnings.money),
+      updateUser(
+        {
+          _id: user._id,
+        },
+        {
+          'friendsEarnings.money': 0,
+          'friendsEarnings.lives': 0,
+          $inc: {
+            lives: user.friendsEarnings.lives,
+          },
+        },
+      ),
+    ]);
+  }
+
+  public static async claimReferralReward(user: UserDoc) {
+    const referrals = await getReferralsEarnedSum({
+      user: user._id,
+    });
+
+    await Promise.all([
+      UsersController.earnMoney(user, referrals),
+      updateReferrals(
+        {
+          user: user._id,
+        },
+        [
+          {
+            $set: {
+              earned: 0,
+              claimed: {
+                $add: ['$earned', '$claimed'],
+              },
+            },
+          },
+        ],
+      ),
+    ]);
   }
 }

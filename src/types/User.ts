@@ -1,7 +1,7 @@
 import { Document } from 'mongoose';
-import { Reward } from './Reward';
+import { RewardDoc } from './Reward';
 
-export interface User extends Document {
+export interface UserDoc extends Document {
   lives: number;
   referrals: number;
   isKol: boolean;
@@ -18,32 +18,40 @@ export interface User extends Document {
     };
   };
   earnings: number;
-  claimedRewards: Reward[];
+  friendsEarnings: {
+    money: number;
+    lives: number;
+  };
+  claimedRewards: {
+    reward: RewardDoc;
+    createdAt: number;
+  }[];
   createdAt: number;
 }
 
 export interface UserView {
-  lives: number;
   referrals: number;
   isKol: boolean;
-  telegramId: number;
   username: string;
   imageURL: string;
-  language: string;
-  activity: {
+  inviteLinkParam?: string;
+  language?: string;
+  activity?: {
     streak: {
       amount: number;
       days: string[];
       updatedAt: number;
     };
-    invites: {
-      max: number;
-      amount: number;
-    };
   };
-  earnings: {
-    total: number;
-    referrals: number;
+  lives?: number;
+  earnings?: number;
+  friendsEarnings?: {
+    money: number;
+    lives: number;
   };
-  createdAt: number;
+  claimedRewards?: {
+    reward: RewardDoc;
+    createdAt: number;
+  }[];
+  createdAt?: number;
 }

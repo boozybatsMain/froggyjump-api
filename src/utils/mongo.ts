@@ -1,5 +1,7 @@
 import mongoose, { MongooseError } from 'mongoose';
 import { buildComplexCategory, debug, error, info } from './logger';
+import { database, config, up } from 'migrate-mongo';
+import path from 'path';
 
 const logCategory = 'mongo.ts';
 
@@ -76,4 +78,62 @@ export const initializeMongo = async (options: {
       );
       throw err;
     });
+
+  await startMigrations({
+    username: options.username,
+    password: options.password,
+    host: options.host,
+    port: options.port,
+    database: options.database,
+  });
+};
+
+export const startMigrations = async ({
+  username,
+  password,
+  host,
+  port,
+  database: databaseName,
+}: {
+  username: string;
+  password: string;
+  host: string;
+  port: number;
+  database: string;
+}) => {
+  info(logCategory, 'Starting migrations');
+  const myConfig = {
+    mongodb: {
+      url: `mongodb://${host}:${port}/${databaseName}`,
+      options: {
+        auth: {
+          username: username,
+          password: password,
+        },
+      },
+    },
+    migrationsDir: path.join(__dirname, '..', 'migrations'),
+    changelogCollectionName: 'changelog',
+    migrationFileExtension: '.ts',
+    useFileHash: false,
+  };
+
+  info(logCategory, 'Configuring migrations');
+  config.set(myConfig);
+
+  info(logCategory, 'Configuring set');
+
+  const { db, client } = await database.connect();
+
+  info(logCategory, 'Connected to database:', {
+    db: db.databaseName,
+  });
+
+  const migrated = await up(db, client);
+
+  if (migrated.length > 0) {
+    migrated.forEach((fileName) => info(logCategory, 'Migrated:', fileName));
+  } else {
+    info(logCategory, 'No migrations to run');
+  }
 };

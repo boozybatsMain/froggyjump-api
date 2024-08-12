@@ -1,6 +1,6 @@
 import mongoose, { FilterQuery, PipelineStage, Types } from 'mongoose';
-import { Play } from '../../types/Game';
-import { User } from '../../types/User';
+import { PlayDoc } from '../../types/Game';
+import { UserDoc } from '../../types/User';
 import { LEADERBOARD_LIMIT } from '../../utils/constants';
 
 const schema = new mongoose.Schema({
@@ -20,7 +20,7 @@ const schema = new mongoose.Schema({
   },
   score: {
     type: Number,
-    required: true,
+    default: 0,
   },
   createdAt: {
     type: Number,
@@ -28,20 +28,22 @@ const schema = new mongoose.Schema({
   },
 });
 
-export const playModel = mongoose.model<Play>('Play', schema);
+export const playModel = mongoose.model<PlayDoc>('Play', schema);
 
-export const createPlay = async (data: Partial<Play>): Promise<Play> => {
+export const createPlay = async (data: Partial<PlayDoc>): Promise<PlayDoc> => {
   return playModel.create(data);
 };
 
 export const updatePlay = async (
-  filter: FilterQuery<Play>,
-  data: FilterQuery<Play>,
+  filter: FilterQuery<PlayDoc>,
+  data: FilterQuery<PlayDoc>,
 ): Promise<void> => {
   await playModel.findOneAndUpdate(filter, data);
 };
 
-export const getPlay = async (filter: FilterQuery<Play>): Promise<Play> => {
+export const getPlay = async (
+  filter: FilterQuery<PlayDoc>,
+): Promise<PlayDoc> => {
   const play = await playModel.findOne(filter);
   if (!play) {
     throw new Error('Play not found');
@@ -55,12 +57,12 @@ export const getUsersLeaderboard = async (
   userId: Types.ObjectId,
 ): Promise<{
   leaderboard: {
-    user: User;
+    user: UserDoc;
     score: number;
     rank: number;
   }[];
   userRank: {
-    user: User | null;
+    user: UserDoc | null;
     score: number | null;
     rank: number | null;
   };

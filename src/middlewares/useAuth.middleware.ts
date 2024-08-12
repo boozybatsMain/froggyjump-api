@@ -1,10 +1,11 @@
-import { createReferral } from '../api/users/referral.model';
+import { createReferral, getReferralsCount } from '../api/users/referral.model';
 import { UsersController } from '../api/users/users.controller';
 import { getUser, updateUser } from '../api/users/users.model';
 import { Request, Response, NextFunction } from 'express';
 import { EncryptionService } from '../helpers/encryptionService';
 import { responseWithBadRequest } from '../utils/express';
 import { error } from '../utils/logger';
+import { calculateRewardForNewFriend } from '../utils/reward';
 
 const logCategory = 'useAuth.middleware';
 
@@ -35,7 +36,9 @@ export const useAuth =
         req.user = user;
 
         if (user.isNew) {
-          const inviteLinkParam = EncryptionService.encode(user.telegramId);
+          const inviteLinkParam = EncryptionService.encode(
+            user.telegramId.toString(),
+          );
 
           user.inviteLinkParam = inviteLinkParam;
           const promises: Promise<void>[] = [
@@ -50,34 +53,57 @@ export const useAuth =
           ];
 
           if (typeof req.query.hash === 'string') {
-            const referral = EncryptionService.decode(req.query.hash);
-
             try {
-              const referralUser = await getUser({ telegramId: referral });
-
-              promises.push(
-                createReferral({
-                  user: referralUser._id,
-                  joined: user._id,
-                }).then(() => {}),
-                updateUser(
-                  {
-                    telegramId: referralUser.telegramId,
-                  },
-                  {
-                    $inc: {
-                      referrals: 1,
-                    },
-                  },
-                ),
+              const referral = parseInt(
+                EncryptionService.decode(req.query.hash),
               );
+
+              try {
+                const referralUser = await getUser({
+                  telegramId: referral,
+                });
+
+                const referralsCount = await getReferralsCount({
+                  user: referralUser._id,
+                });
+                const friendsReward =
+                  calculateRewardForNewFriend(referralsCount);
+
+                promises.push(
+                  createReferral({
+                    user: referralUser._id,
+                    joined: user._id,
+                  }).then(() => {}),
+                  updateUser(
+                    {
+                      telegramId: referralUser.telegramId,
+                    },
+                    {
+                      $inc: {
+                        referrals: 1,
+                        'friendsEarnings.money': friendsReward.money,
+                        'friendsEarnings.lives': friendsReward.lives,
+                      },
+                    },
+                  ),
+                );
+              } catch (err) {
+                error(
+                  logCategory,
+                  new Error('Can not update referral by hash'),
+                  undefined,
+                  {
+                    referral,
+                    hash: req.query.hash,
+                  },
+                );
+              }
             } catch (err) {
               error(
                 logCategory,
-                new Error('Can not update referral by hash'),
+                new Error('Can not decode referral hash'),
                 undefined,
                 {
-                  referral,
                   hash: req.query.hash,
                 },
               );

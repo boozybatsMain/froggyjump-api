@@ -1,5 +1,5 @@
 import mongoose, { FilterQuery } from 'mongoose';
-import { Reward } from '../../types/Reward';
+import { RewardDoc } from '../../types/Reward';
 
 const schema = new mongoose.Schema({
   rewardType: {
@@ -38,17 +38,23 @@ const schema = new mongoose.Schema({
     },
     enum: ['twitter', 'telegram', 'telegram-chat'],
   },
+  createdAt: {
+    type: Number,
+    default: Date.now,
+  },
 });
 
-export const rewardModel = mongoose.model<Reward>('Reward', schema);
+export const rewardModel = mongoose.model<RewardDoc>('Reward', schema);
 
 export const getRewards = async (
-  data: FilterQuery<Reward>,
-): Promise<Reward[]> => {
+  data: FilterQuery<RewardDoc>,
+): Promise<RewardDoc[]> => {
   return rewardModel.find(data);
 };
 
-export const getReward = async (data: FilterQuery<Reward>): Promise<Reward> => {
+export const getReward = async (
+  data: FilterQuery<RewardDoc>,
+): Promise<RewardDoc> => {
   const reward = await rewardModel.findOne(data);
   if (reward == null) {
     throw new Error('Reward not found');
