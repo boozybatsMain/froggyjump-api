@@ -2,6 +2,8 @@ import { config } from '../config';
 import path from 'path';
 import swaggerJsdoc from 'swagger-jsdoc';
 
+const fileExt = __filename.split('.').at(-1);
+
 const options = {
   definition: {
     openapi: '3.0.0',
@@ -33,8 +35,8 @@ const options = {
     ],
   },
   apis: [
-    path.join(__dirname, './api-docs.ts'),
-    path.join(__dirname, '../api/**/*.routes.ts'),
+    path.join(__dirname, `./api-docs.${fileExt}`),
+    path.join(__dirname, `../api/**/*.routes.${fileExt}`),
   ],
 };
 
