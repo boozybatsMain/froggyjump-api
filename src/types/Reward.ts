@@ -16,6 +16,9 @@ export type Reward = {
       rewardType: 'social';
       subscription: string;
     }
+  | {
+      rewardType: 'gyroscope';
+    }
 );
 
 export type RewardDoc = Document & Reward;

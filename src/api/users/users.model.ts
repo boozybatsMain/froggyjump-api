@@ -77,6 +77,11 @@ const schema = new mongoose.Schema({
   },
   friendsEarnings: {
     type: {
+      count: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
       money: {
         type: Number,
         default: 0,
@@ -108,6 +113,14 @@ const schema = new mongoose.Schema({
     ],
     default: [],
   },
+  lastVisit: {
+    type: Number,
+    default: Date.now,
+  },
+  lastNotification: {
+    type: Number,
+    default: 0,
+  },
   createdAt: {
     type: Number,
     default: Date.now,
@@ -126,6 +139,12 @@ export const getUser = async (
   }
 
   return user;
+};
+
+export const getUsers = async (
+  filter: FilterQuery<UserDoc>,
+): Promise<UserDoc[]> => {
+  return userModel.find(filter).populate(populate);
 };
 
 export const getOrCreateUser = async (
@@ -152,4 +171,11 @@ export const updateUser = async (
   data: FilterQuery<UserDoc>,
 ): Promise<void> => {
   await userModel.updateOne(filter, data);
+};
+
+export const updateUsers = async (
+  filter: FilterQuery<UserDoc>,
+  data: FilterQuery<UserDoc>,
+): Promise<void> => {
+  await userModel.updateMany(filter, data);
 };

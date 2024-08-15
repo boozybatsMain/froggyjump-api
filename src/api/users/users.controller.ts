@@ -1,4 +1,4 @@
-import { UserDoc, UserView } from '../../types/User';
+import { UserDoc, UserEarningsView, UserView } from '../../types/User';
 import { getOrCreateUser, updateUser } from './users.model';
 import { createHmac } from 'crypto';
 import { config } from '../../config';
@@ -16,6 +16,10 @@ import {
 import { asyncMap } from '../../utils/async';
 import { Types } from 'mongoose';
 import { getPlay } from '../games/play.model';
+import { buildComplexCategory, debug } from '../../utils/logger';
+import { ReferralsPagination } from '../../types/Referral';
+
+const logCategory = 'users.controller';
 
 const validAuthDuration = 10 * 60 * 60 * 1000;
 
@@ -54,6 +58,7 @@ export class UsersController {
       };
       result.earnings = user.earnings;
       result.friendsEarnings = {
+        count: user.friendsEarnings.count,
         lives: user.friendsEarnings.lives,
         money: user.friendsEarnings.money,
       };
@@ -65,6 +70,12 @@ export class UsersController {
     }
 
     return result;
+  }
+
+  public static async earningsToView(user: UserDoc): Promise<UserEarningsView> {
+    return {
+      earnings: user.earnings,
+    };
   }
 
   private static validateHash(data: { [key: string]: string }): boolean {
@@ -79,7 +90,7 @@ export class UsersController {
       .join('\n');
 
     const secret = createHmac('sha256', 'WebAppData')
-      .update(config.bot.token)
+      .update(config.telegram.token)
       .digest();
     const checkHash = createHmac('sha256', secret)
       .update(checkString)
@@ -91,6 +102,11 @@ export class UsersController {
   public static parseInitData(
     initData: string,
   ): z.infer<typeof userSchema> | null {
+    const complexLogCategory = buildComplexCategory(
+      logCategory,
+      'parseInitData',
+    );
+
     const data = Object.fromEntries(
       decodeURIComponent(initData)
         .split('&')
@@ -103,12 +119,18 @@ export class UsersController {
     };
 
     if (!this.validateHash(data) || !data.user) {
+      debug(complexLogCategory, 'Invalid hash or user is undefined', {
+        data,
+      });
       return null;
     }
     if (
       !data.auth_date ||
       parseInt(data.auth_date) < (Date.now() - validAuthDuration) / 1000
     ) {
+      debug(complexLogCategory, 'Invalid auth_date', {
+        data,
+      });
       return null;
     }
 
@@ -116,6 +138,10 @@ export class UsersController {
       const parsedUser = JSON.parse(data.user);
       return userSchema.parse(parsedUser);
     } catch (err) {
+      debug(complexLogCategory, 'Error parsing user', {
+        data,
+        error: err,
+      });
       return null;
     }
   }
@@ -179,19 +205,7 @@ export class UsersController {
       offset?: number;
       limit?: number;
     },
-  ): Promise<{
-    results: {
-      user: UserView;
-      earned: number;
-      claimed: number;
-      createdAt: number;
-    }[];
-    meta: {
-      offset: number;
-      limit: number;
-      total: number;
-    };
-  }> {
+  ): Promise<ReferralsPagination> {
     const offset = filters.offset ?? 0;
     const limit = filters.limit ?? 5;
 
@@ -224,5 +238,16 @@ export class UsersController {
       user: user._id,
       active: true,
     });
+  }
+
+  public static async updateUserLastVisit(user: UserDoc): Promise<void> {
+    await updateUser(
+      {
+        _id: user._id,
+      },
+      {
+        lastVisit: Date.now(),
+      },
+    );
   }
 }

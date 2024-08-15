@@ -189,6 +189,7 @@ export class RewardsController {
           _id: user._id,
         },
         {
+          'friendsEarnings.count': 0,
           'friendsEarnings.money': 0,
           'friendsEarnings.lives': 0,
           $inc: {

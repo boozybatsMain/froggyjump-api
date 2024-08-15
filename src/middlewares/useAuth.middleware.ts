@@ -4,7 +4,7 @@ import { getUser, updateUser } from '../api/users/users.model';
 import { Request, Response, NextFunction } from 'express';
 import { EncryptionService } from '../helpers/encryptionService';
 import { responseWithBadRequest } from '../utils/express';
-import { error } from '../utils/logger';
+import { error, debug } from '../utils/logger';
 import { calculateRewardForNewFriend } from '../utils/reward';
 
 const logCategory = 'useAuth.middleware';
@@ -14,6 +14,9 @@ export const useAuth =
   (req: Request, res: Response, next: NextFunction) => {
     const authorizationHeader = req.headers.authorization;
     if (!authorizationHeader) {
+      debug(logCategory, 'No authorization header', {
+        headers: req.headers,
+      });
       return responseWithBadRequest(res);
     }
 
@@ -22,9 +25,15 @@ export const useAuth =
       userResult = UsersController.parseInitData(authorizationHeader);
 
       if (!userResult) {
+        debug(logCategory, 'No user result on parse data', {
+          authorizationHeader,
+        });
         return responseWithBadRequest(res);
       }
     } catch (err) {
+      debug(logCategory, 'Can not parse user data', {
+        authorizationHeader,
+      });
       return responseWithBadRequest(res);
     }
 
@@ -83,6 +92,7 @@ export const useAuth =
                         referrals: 1,
                         'friendsEarnings.money': friendsReward.money,
                         'friendsEarnings.lives': friendsReward.lives,
+                        'friendsEarnings.count': 1,
                       },
                     },
                   ),

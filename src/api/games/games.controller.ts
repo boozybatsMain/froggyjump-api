@@ -8,6 +8,7 @@ import {
   updatePlay,
 } from './play.model';
 import { UsersController } from '../../api/users/users.controller';
+import { Leaderboard } from '../../types/Leaderboard';
 
 export class GamesController {
   static async getGames() {
@@ -70,18 +71,7 @@ export class GamesController {
   static async getLeaderboard(
     gameId: Types.ObjectId,
     user: UserDoc,
-  ): Promise<{
-    leaderboard: {
-      user: UserDoc;
-      score: number;
-      rank: number;
-    }[];
-    userRank: {
-      user: UserDoc | null;
-      score: number | null;
-      rank: number | null;
-    };
-  }> {
+  ): Promise<Leaderboard> {
     return getUsersLeaderboard(gameId, user._id as Types.ObjectId);
   }
 }

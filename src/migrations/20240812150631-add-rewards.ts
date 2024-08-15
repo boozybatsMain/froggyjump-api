@@ -67,6 +67,11 @@ const rewards: Partial<Reward>[] = [
       daily: true,
     },
   },
+
+  {
+    rewardType: 'gyroscope',
+    money: 150,
+  },
 ];
 
 export const up = async (db: Db, client: MongoClient): Promise<void> => {

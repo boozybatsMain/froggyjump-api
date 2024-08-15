@@ -6,7 +6,7 @@ export class EncryptionService {
   private static readonly algorithm = 'aes-256-ctr';
 
   static encode(data: string): string {
-    const key = Buffer.from(config.bot.token.substr(0, 32));
+    const key = Buffer.from(config.telegram.token.substr(0, 32));
 
     const iv = randomBytes(16);
     const cipher = createCipheriv(this.algorithm, key, iv);
@@ -20,7 +20,7 @@ export class EncryptionService {
   }
 
   static decode(encoded: string): string {
-    const key = Buffer.from(config.bot.token.substr(0, 32));
+    const key = Buffer.from(config.telegram.token.substr(0, 32));
 
     const [ivBase32, encryptedBase32] = encoded.split('_');
     const iv = Buffer.from(base32.decode.asBytes(ivBase32));

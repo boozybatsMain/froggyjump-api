@@ -19,15 +19,21 @@ export const config = convict({
   port: {
     doc: 'The port to bind.',
     format: 'port',
-    default: 3000,
+    default: 80,
     env: 'PORT',
   },
-  bot: {
+  telegram: {
     token: {
       doc: 'The bot token.',
       format: String,
       default: '',
       env: 'BOT_TOKEN',
+    },
+    twaUrl: {
+      doc: 'The TWA URL.',
+      format: String,
+      default: '',
+      env: 'TWA_URL',
     },
   },
   mongo: {

@@ -19,6 +19,7 @@ export interface UserDoc extends Document {
   };
   earnings: number;
   friendsEarnings: {
+    count: number;
     money: number;
     lives: number;
   };
@@ -26,6 +27,8 @@ export interface UserDoc extends Document {
     reward: RewardDoc;
     createdAt: number;
   }[];
+  lastVisit: number;
+  lastNotification: number;
   createdAt: number;
 }
 
@@ -46,6 +49,7 @@ export interface UserView {
   lives?: number;
   earnings?: number;
   friendsEarnings?: {
+    count: number;
     money: number;
     lives: number;
   };
@@ -54,4 +58,8 @@ export interface UserView {
     createdAt: number;
   }[];
   createdAt?: number;
+}
+
+export interface UserEarningsView {
+  earnings: number;
 }

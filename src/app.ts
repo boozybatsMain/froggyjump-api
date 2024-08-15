@@ -1,6 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import routes from './api';
-import { error } from './utils/logger';
+import { debug } from './utils/logger';
 
 const logCategory = 'app.ts';
 
@@ -10,7 +10,10 @@ app.use(express.json());
 app.use('/api', routes);
 
 app.use(function (err: Error, req: Request, res: Response, next: NextFunction) {
-  error(logCategory, err, 'Uncaught exception');
+  debug(logCategory, 'Uncaught exception', {
+    err,
+    message: err.message,
+  });
   res.status(500).json({
     ok: false,
   });
